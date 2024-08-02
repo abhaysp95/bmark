@@ -1,4 +1,6 @@
-use clap::{Arg, ArgAction, ArgGroup, ArgMatches, Command};
+use std::path::PathBuf;
+
+use clap::{value_parser, Arg, ArgAction, ArgGroup, ArgMatches, Command};
 
 pub fn build_args() -> ArgMatches {
     return Command::new("bmark")
@@ -26,6 +28,7 @@ pub fn build_args() -> ArgMatches {
                     .short('c')
                     .long("catg")
                     .default_value("root")
+                    .value_parser(value_parser!(PathBuf))
                     .help("Category to put the URL in"),
             ]),
         )

@@ -8,7 +8,7 @@ pub enum BMarkTask {
         category: Option<PathBuf>,
     },
     List {
-        output: OutputType,
+        output: Option<OutputType>,
         cols: ListColumn,
     },
 }

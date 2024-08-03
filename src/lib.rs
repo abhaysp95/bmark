@@ -9,11 +9,12 @@ pub enum BMarkTask {
         tags: Vec<String>,
         desc: Option<String>,
         category: Option<PathBuf>,
+        date: String,
     },
     List {
         output: Option<OutputType>,
         cols: ListColumn,
-        tagMode: TagMode,
+        tag_mode: TagMode,
     },
 }
 

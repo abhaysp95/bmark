@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use clap::{value_parser, Arg, ArgAction, ArgGroup, ArgMatches, Command};
 
+use crate::date::validate_date;
+
 pub fn build_args() -> ArgMatches {
     return Command::new("bmark")
         // .no_binary_name(true)
@@ -21,7 +23,6 @@ pub fn build_args() -> ArgMatches {
                     .action(ArgAction::Append)
                     .help("Provide tags to bookmark"),
                 Arg::new("description")
-                    .short('d')
                     .long("desc")
                     .help("Additional note for bookmark"),
                 Arg::new("category")
@@ -30,6 +31,10 @@ pub fn build_args() -> ArgMatches {
                     .default_value("root")
                     .value_parser(value_parser!(PathBuf))
                     .help("Category to put the URL in"),
+                Arg::new("date")
+                    .long("date")
+                    .value_parser(validate_date)
+                    .help("Date of when the bookmark was added [default: today, format: yyyy-mm-dd]"),
             ]),
         )
         .subcommand(

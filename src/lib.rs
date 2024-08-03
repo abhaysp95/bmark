@@ -10,6 +10,7 @@ pub enum BMarkTask {
     List {
         output: Option<OutputType>,
         cols: ListColumn,
+        tagMode: TagMode,
     },
 }
 
@@ -23,4 +24,9 @@ pub enum ListColumn {
     Url,
     Tag,
     Desc,
+}
+
+pub enum TagMode {
+    All,
+    Any
 }

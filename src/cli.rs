@@ -62,9 +62,12 @@ Either provide \"all\" or provide any of the others mentioned columns.
 \"url\" will just list out the URLs without any other columns.
 If provided \"desc\" or \"tags\" as value, they will be listed along with their URL.",
                         ),
-                ),
+                )
+                .arg(
+                    Arg::new("tag-mode")
+                        .default_value("any")
+                        .value_parser(["all", "any"])
+                        .help("When 'all' enabled it'll strictly look for the bookmarks which have all the tags given by user"))
         )
         .get_matches();
 }
-
-

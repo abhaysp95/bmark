@@ -36,6 +36,7 @@ pub fn build_args() -> ArgMatches {
             Command::new("list")
                 .args([
                     Arg::new("all")
+                        .short('a')
                         .long("all")
                         .action(ArgAction::SetTrue)
                         .help("List out all for bookmark"),
@@ -46,13 +47,13 @@ pub fn build_args() -> ArgMatches {
                         .action(ArgAction::Append)
                         .help("List out bookmarks related to tag"),
                 ])
-                .group(ArgGroup::new("output").args(["all", "tag"]).required(true))
+                .group(ArgGroup::new("output").args(["all", "tag"]))
                 .arg(
                     Arg::new("cols")
                         .short('c')
                         .long("cols")
                         .default_value("all")
-                        .value_parser(["all, url, desc, tags"])
+                        .value_parser(["all", "url", "desc", "tags"])
                         .help("List the specified cols")
                         .long_help(
                             "List the specified columns.

@@ -45,15 +45,30 @@ pub fn get_db_connection(path: Option<PathBuf>) -> Result<Connection> {
 
 pub fn create_table(conn: &Connection, name: &str) -> Result<()> {
     conn.execute(
-        "CREATE TABLE ?1 (
+        &format!("CREATE TABLE {} (
             id TEXT PRIMARY KEY,
             url TEXT NOT NULL,
             description TEXT,
             category TEXT,
             name TEXT
-            );",
-        (&name,)
+            );", name),
+        ()
     )?;
+
+    Ok(())
+}
+
+#[test]
+fn is_table_created() -> Result<()> {
+    let conn = get_db_connection(None)?;
+    let table_name = "my_table";
+    create_table(&conn, table_name)?;
+
+    // query whether table exists
+    let mut stmt = conn.prepare("SELECT name FROM sqlite_master WHERE name=?1")?;
+    let res = stmt.query_row(&[table_name], |row| row.get::<_, String>(0))?;
+
+    assert_eq!(table_name, &res);
 
     Ok(())
 }

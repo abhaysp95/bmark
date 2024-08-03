@@ -39,7 +39,7 @@ pub fn build_args() -> ArgMatches {
                         .short('a')
                         .long("all")
                         .action(ArgAction::SetTrue)
-                        .help("List out all for bookmark"),
+                        .help("List out all for bookmark. If --tag/-t not passed, --all will be considered"),
                     // can't this be multiple yet "all" be single ?
                     Arg::new("tag")
                         .short('t')

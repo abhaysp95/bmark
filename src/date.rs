@@ -1,4 +1,4 @@
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{fmt::Display, time::{SystemTime, UNIX_EPOCH}};
 
 struct DateTime {
     year: u64,
@@ -9,6 +9,12 @@ struct DateTime {
     sec: u64,
 }
 
+impl Display for DateTime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}-{:02}-{:02} {:02}:{:02}:{:02}", self.year, self.month, self.day, self.hour, self.min, self.sec)
+    }
+}
+
 fn is_leap_year(year: u64) -> bool {
     return if year % 400 == 0 || (year % 4 == 0 && year % 100 != 0) {
         true
@@ -17,13 +23,13 @@ fn is_leap_year(year: u64) -> bool {
     }
 }
 
-fn get_todays_date() -> DateTime {
-    let today = SystemTime::now().duration_since(UNIX_EPOCH).expect("Duration before Unix Epoch");
-    let total_secs = today.as_secs();
-
-    let days_since_epoch = total_secs / 86400;
+/// Get `DateTime` for provided `epoch` (seconds)
+/// This doesn't considers your timezone and returns `DateTime` which will be UTC in 24-hour format
+fn get_datetime_for_epochs(epoch: u64) -> DateTime {
+    let days_since_epoch = epoch / 86400;
     let mut cyear = 1970; // epoch year start
     let mut days_in_years = 0;
+    #[allow(unused_assignments)]
     let mut days_in_cyear = 0;
 
     let mut days_till_now = days_since_epoch;
@@ -56,8 +62,8 @@ fn get_todays_date() -> DateTime {
     }
 
     let cmonth = cmonth as u64 + 1; // cmonth was zero indexed
-    let seconds_today = total_secs % 86400;
-    let cday = days_this_year - days_count + if seconds_today != 0 { 1 } else { 0 };
+    let seconds_today = epoch % 86400;
+    let cday = days_this_year - days_count + 1;
 
     let chour = seconds_today / 3600;
     let cmin = (seconds_today % 3600) / 60;
@@ -74,7 +80,11 @@ fn get_todays_date() -> DateTime {
 }
 
 pub fn validate_date(arg: &str) -> Result<String, String> {
-    _ = get_todays_date();
+    let today = SystemTime::now().duration_since(UNIX_EPOCH).expect("Duration before Unix Epoch");
+    let epoch = today.as_secs();
+
+    let datetime = get_datetime_for_epochs(epoch);
+    println!("todays date: {}", datetime);
 
     Ok(arg.to_owned())
 }

@@ -88,3 +88,19 @@ pub fn validate_date(arg: &str) -> Result<String, String> {
 
     Ok(arg.to_owned())
 }
+
+#[test]
+fn test_datetime_from_epoch() {
+    let epochs: Vec<u64> = vec![946684800, 1609459199, 253402300799, 0, 1582934400];
+    let res_datetime = vec!["2000-01-01 00:00:00", "2020-12-31 23:59:59", "9999-12-31 23:59:59", "1970-01-01 00:00:00", "2020-02-29 00:00:00"];
+
+    let mut output_datetime: Vec<String> = vec![];
+    for epoch in &epochs {
+        let datetime = get_datetime_for_epochs(*epoch);
+        output_datetime.push(format!("{}", datetime));
+    }
+
+    for i in 0..epochs.len() {
+        assert_eq!(res_datetime[i], &output_datetime[i]);
+    }
+}

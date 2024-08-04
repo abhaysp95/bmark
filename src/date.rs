@@ -1,15 +1,15 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 struct DateTime {
-    year: u32,
-    month: u32,
-    day: u32,
-    hour: u32,
-    min: u32,
-    sec: u32,
+    year: u64,
+    month: u64,
+    day: u64,
+    hour: u64,
+    min: u64,
+    sec: u64,
 }
 
-fn is_leap_year(year: u32) -> bool {
+fn is_leap_year(year: u64) -> bool {
     return if year % 400 == 0 || (year % 4 == 0 && year % 100 != 0) {
         true
     } else {
@@ -18,11 +18,10 @@ fn is_leap_year(year: u32) -> bool {
 }
 
 fn get_todays_date() -> DateTime {
-
     let today = SystemTime::now().duration_since(UNIX_EPOCH).expect("Duration before Unix Epoch");
-    let total_sec = today.as_secs();
+    let total_secs = today.as_secs();
 
-    let days_since_epoch = total_sec / 86400;
+    let days_since_epoch = total_secs / 86400;
     let mut cyear = 1970; // epoch year start
     let mut days_in_years = 0;
     let mut days_in_cyear = 0;
@@ -42,15 +41,35 @@ fn get_todays_date() -> DateTime {
         cyear += 1;
     }
 
-    println!("year: {}, days left: {}\n", cyear, days_since_epoch - days_in_years);
+    let days_this_year = days_since_epoch - days_in_years;
+    let days_per_month = vec![31, if is_leap_year(cyear) { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+    let mut days_count = 0;
+    let mut cmonth = 0;
+    loop {
+        days_count += days_per_month[cmonth];
+        if days_count > days_this_year {
+            days_count -= days_per_month[cmonth];
+            break;
+        }
+        cmonth += 1;
+    }
+
+    let cmonth = cmonth as u64 + 1; // cmonth was zero indexed
+    let seconds_today = total_secs % 86400;
+    let cday = days_this_year - days_count + if seconds_today != 0 { 1 } else { 0 };
+
+    let chour = seconds_today / 3600;
+    let cmin = (seconds_today % 3600) / 60;
+    let csec = seconds_today - (chour * 3600 + cmin * 60);
 
     return DateTime {
         year: cyear,
-        month: 0,
-        day: 0,
-        hour: 0,
-        min: 0,
-        sec: 0
+        month: cmonth,
+        day: cday,
+        hour: chour,
+        min: cmin,
+        sec: csec
     }
 }
 

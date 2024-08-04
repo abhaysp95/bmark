@@ -1,4 +1,7 @@
-use std::{fmt::Display, time::{SystemTime, UNIX_EPOCH}};
+use std::{
+    fmt::Display,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 struct DateTime {
     year: u64,
@@ -11,7 +14,11 @@ struct DateTime {
 
 impl Display for DateTime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}-{:02}-{:02} {:02}:{:02}:{:02}", self.year, self.month, self.day, self.hour, self.min, self.sec)
+        write!(
+            f,
+            "{}-{:02}-{:02} {:02}:{:02}:{:02}",
+            self.year, self.month, self.day, self.hour, self.min, self.sec
+        )
     }
 }
 
@@ -20,7 +27,7 @@ fn is_leap_year(year: u64) -> bool {
         true
     } else {
         false
-    }
+    };
 }
 
 /// Get `DateTime` for provided `epoch` (seconds)
@@ -48,7 +55,20 @@ fn get_datetime_for_epochs(epoch: u64) -> DateTime {
     }
 
     let days_this_year = days_since_epoch - days_in_years;
-    let days_per_month = vec![31, if is_leap_year(cyear) { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let days_per_month = vec![
+        31,
+        if is_leap_year(cyear) { 29 } else { 28 },
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
+    ];
 
     let mut days_count = 0;
     let mut cmonth = 0;
@@ -75,12 +95,14 @@ fn get_datetime_for_epochs(epoch: u64) -> DateTime {
         day: cday,
         hour: chour,
         min: cmin,
-        sec: csec
-    }
+        sec: csec,
+    };
 }
 
 pub fn validate_date(arg: &str) -> Result<String, String> {
-    let today = SystemTime::now().duration_since(UNIX_EPOCH).expect("Duration before Unix Epoch");
+    let today = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("Duration before Unix Epoch");
     let epoch = today.as_secs();
 
     let datetime = get_datetime_for_epochs(epoch);
@@ -92,7 +114,13 @@ pub fn validate_date(arg: &str) -> Result<String, String> {
 #[test]
 fn test_datetime_from_epoch() {
     let epochs: Vec<u64> = vec![946684800, 1609459199, 253402300799, 0, 1582934400];
-    let res_datetime = vec!["2000-01-01 00:00:00", "2020-12-31 23:59:59", "9999-12-31 23:59:59", "1970-01-01 00:00:00", "2020-02-29 00:00:00"];
+    let res_datetime = vec![
+        "2000-01-01 00:00:00",
+        "2020-12-31 23:59:59",
+        "9999-12-31 23:59:59",
+        "1970-01-01 00:00:00",
+        "2020-02-29 00:00:00",
+    ];
 
     let mut output_datetime: Vec<String> = vec![];
     for epoch in &epochs {

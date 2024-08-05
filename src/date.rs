@@ -1,9 +1,12 @@
 use std::{
-    fmt::Display,
-    time::{SystemTime, UNIX_EPOCH},
+    error::Error, fmt::Display, time::{SystemTime, UNIX_EPOCH}
 };
 
-struct DateTime {
+use anyhow::{ensure, Result};
+use regex::Regex;
+
+#[derive(PartialEq)]
+struct Datetime {
     year: u64,
     month: u64,
     day: u64,
@@ -12,7 +15,7 @@ struct DateTime {
     sec: u64,
 }
 
-impl Display for DateTime {
+impl Display for Datetime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -32,7 +35,7 @@ fn is_leap_year(year: u64) -> bool {
 
 /// Get `DateTime` for provided `epoch` (seconds)
 /// This doesn't considers your timezone and returns `DateTime` which will be UTC in 24-hour format
-fn get_datetime_for_epochs(epoch: u64) -> DateTime {
+fn get_datetime_for_epochs(epoch: u64) -> Datetime {
     let days_since_epoch = epoch / 86400;
     let mut cyear = 1970; // epoch year start
     let mut days_in_years = 0;
@@ -89,7 +92,7 @@ fn get_datetime_for_epochs(epoch: u64) -> DateTime {
     let cmin = (seconds_today % 3600) / 60;
     let csec = seconds_today - (chour * 3600 + cmin * 60);
 
-    return DateTime {
+    return Datetime {
         year: cyear,
         month: cmonth,
         day: cday,
@@ -99,15 +102,50 @@ fn get_datetime_for_epochs(epoch: u64) -> DateTime {
     };
 }
 
-pub fn validate_date(arg: &str) -> Result<String, String> {
+#[derive(Debug)]
+enum DatetimeError {
+    ParsingError(String),
+}
+
+impl Display for DatetimeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ParsingError(msg) => write!(f, "DatetimeParsingError: {}", msg)
+        }
+    }
+}
+
+impl Error for DatetimeError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        None
+    }
+
+    fn description(&self) -> &str {
+        "description() is deprecated; use Display"
+    }
+
+    fn cause(&self) -> Option<&dyn Error> {
+        self.source()
+    }
+}
+
+fn parse_date(arg: &str) -> Result<()> {
+    let re = Regex::new(r"^(?P<year>\d{4})-(?P<mon>\d{2})-(?P<day>\d{2}) (?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})$").map_err(|e| eprintln!("Failed to create regex")).unwrap();
+    let cap_dt = re.captures(arg).unwrap();
+
+    ensure!(cap_dt["year"].parse::<u64>().unwrap() >= 1970, DatetimeError::ParsingError(String::from("Year should be more than 1970")));
+
+    Ok(())
+}
+
+pub fn validate_date(arg: &str) -> Result<String> {
     let today = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("Duration before Unix Epoch");
     let epoch = today.as_secs();
 
-    let datetime = get_datetime_for_epochs(epoch);
-    println!("todays date: {}", datetime);
-
+    let today_datetime = get_datetime_for_epochs(epoch);
+    parse_date(&format!("{}", today_datetime))?;
     Ok(arg.to_owned())
 }
 

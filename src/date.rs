@@ -1,5 +1,8 @@
 use std::{
-    error::Error, fmt::Display, time::{SystemTime, UNIX_EPOCH}
+    error::Error,
+    fmt::Display,
+    panic,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::{ensure, Result};
@@ -7,12 +10,38 @@ use regex::Regex;
 
 #[derive(PartialEq)]
 struct Datetime {
-    year: u64,
-    month: u64,
-    day: u64,
-    hour: u64,
-    min: u64,
-    sec: u64,
+    year: u32,
+    month: u8,
+    day: u8,
+    hour: u8,
+    minute: u8,
+    second: u8,
+}
+
+fn get_month_name_from_index<T>(idx: T) -> String
+where
+    T: Into<u8>,
+{
+    let idx = idx.into();
+    if idx == 0 || idx > 12 {
+        panic!("Months range from 1 to 12")
+    }
+    let months = vec![
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+    ];
+
+    String::from(months[idx as usize])
 }
 
 impl Display for Datetime {
@@ -20,12 +49,12 @@ impl Display for Datetime {
         write!(
             f,
             "{}-{:02}-{:02} {:02}:{:02}:{:02}",
-            self.year, self.month, self.day, self.hour, self.min, self.sec
+            self.year, self.month, self.day, self.hour, self.minute, self.second
         )
     }
 }
 
-fn is_leap_year(year: u64) -> bool {
+fn is_leap_year(year: u32) -> bool {
     return if year % 400 == 0 || (year % 4 == 0 && year % 100 != 0) {
         true
     } else {
@@ -93,12 +122,12 @@ fn get_datetime_for_epochs(epoch: u64) -> Datetime {
     let csec = seconds_today - (chour * 3600 + cmin * 60);
 
     return Datetime {
-        year: cyear,
-        month: cmonth,
-        day: cday,
-        hour: chour,
-        min: cmin,
-        sec: csec,
+        year: cyear as u32,
+        month: cmonth as u8,
+        day: cday as u8,
+        hour: chour as u8,
+        minute: cmin as u8,
+        second: csec as u8,
     };
 }
 
@@ -110,7 +139,7 @@ enum DatetimeError {
 impl Display for DatetimeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ParsingError(msg) => write!(f, "DatetimeParsingError: {}", msg)
+            Self::ParsingError(msg) => write!(f, "DatetimeParsingError: {}", msg),
         }
     }
 }
@@ -129,13 +158,70 @@ impl Error for DatetimeError {
     }
 }
 
-fn parse_date(arg: &str) -> Result<()> {
-    let re = Regex::new(r"^(?P<year>\d{4})-(?P<mon>\d{2})-(?P<day>\d{2}) (?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})$").map_err(|e| eprintln!("Failed to create regex")).unwrap();
+fn parse_date(arg: &str) -> Result<Datetime> {
+    let re = Regex::new(r"^(?P<year>\d{4})-(?P<mon>\d{2})-(?P<day>\d{2}) (?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})$")
+        .map_err(|_| eprintln!("Failed to create regex")).unwrap();
     let cap_dt = re.captures(arg).unwrap();
 
-    ensure!(cap_dt["year"].parse::<u64>().unwrap() >= 1970, DatetimeError::ParsingError(String::from("Year should be more than 1970")));
+    let month_with_30 = vec![4, 6, 9, 11];
 
-    Ok(())
+    let year = cap_dt["year"].parse::<u32>().unwrap();
+    ensure!(
+        year >= 1970,
+        DatetimeError::ParsingError(String::from("Year should be more than 1970"))
+    );
+    let month = cap_dt["mon"].parse::<u8>().unwrap();
+    ensure!(
+        month > 0 && month <= 12,
+        DatetimeError::ParsingError(String::from("Month can be in range of 1 to 12"))
+    );
+    let day = cap_dt["day"].parse::<u8>().unwrap();
+    ensure!(
+        day > 0 && day <= 31,
+        DatetimeError::ParsingError(String::from("Day can be in range of 1 to 31"))
+    );
+    ensure!(
+        month_with_30.contains(&month) && day == 31,
+        DatetimeError::ParsingError(String::from(format!(
+            "{} can't have 31 days",
+            get_month_name_from_index(month as u8)
+        )))
+    );
+    ensure!(
+        month == 2 && day > 29,
+        DatetimeError::ParsingError(String::from(format!(
+            "{} can't have more than 29 days",
+            get_month_name_from_index(month as u8)
+        )))
+    );
+    ensure!(
+        month == 2 && day == 29 && !is_leap_year(year),
+        DatetimeError::ParsingError(String::from(format!("{} is not leap year", &year)))
+    );
+    let hour = cap_dt["hour"].parse::<u8>().unwrap();
+    ensure!(
+        hour > 23,
+        DatetimeError::ParsingError(String::from("Hour ranges from 0 to 23"))
+    );
+    let minute = cap_dt["min"].parse::<u8>().unwrap();
+    ensure!(
+        hour > 59,
+        DatetimeError::ParsingError(String::from("Minute ranges from 0 to 59"))
+    );
+    let second = cap_dt["sec"].parse::<u8>().unwrap();
+    ensure!(
+        hour > 59,
+        DatetimeError::ParsingError(String::from("Second ranges from 0 to 59"))
+    );
+
+    Ok(Datetime {
+        year,
+        month,
+        day,
+        hour,
+        minute,
+        second,
+    })
 }
 
 pub fn validate_date(arg: &str) -> Result<String> {
@@ -145,7 +231,6 @@ pub fn validate_date(arg: &str) -> Result<String> {
     let epoch = today.as_secs();
 
     let today_datetime = get_datetime_for_epochs(epoch);
-    parse_date(&format!("{}", today_datetime))?;
     Ok(arg.to_owned())
 }
 

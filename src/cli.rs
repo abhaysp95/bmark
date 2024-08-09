@@ -11,6 +11,15 @@ pub fn build_args() -> ArgMatches {
         .version("0.0.1") // will make dynamic
         .about("Bookmark Manager tool")
         .subcommand(
+            Command::new("setup").args([
+                Arg::new("dbpath")
+                    .long("dbpath")
+                    .default_value("~/.local/bmark")
+                    .value_parser(value_parser!(PathBuf))
+                    .help("Tell where the db file should be placed")
+            ])
+        )
+        .subcommand(
             Command::new("add").args([
                 Arg::new("url")
                     .short('u')
@@ -28,8 +37,6 @@ pub fn build_args() -> ArgMatches {
                 Arg::new("category")
                     .short('c')
                     .long("catg")
-                    .default_value("root")
-                    .value_parser(value_parser!(PathBuf))
                     .help("Category to put the URL in"),
                 Arg::new("date")
                     .long("date")

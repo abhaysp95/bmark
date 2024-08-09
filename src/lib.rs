@@ -4,6 +4,9 @@ use anyhow::{Context, Result};
 use rusqlite::Connection;
 
 pub enum BMarkTask {
+    Setup {
+        dbpath: Option<PathBuf>
+    },
     Add {
         url: String,
         tags: Vec<String>,

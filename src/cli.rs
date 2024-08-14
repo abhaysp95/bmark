@@ -14,7 +14,7 @@ pub fn build_args() -> ArgMatches {
             Command::new("setup").args([
                 Arg::new("dbpath")
                     .long("dbpath")
-                    .default_value("~/.local/bmark")
+                    .default_value("./local/bmark/bmark.db")
                     .value_parser(value_parser!(PathBuf))
                     .help("Tell where the db file should be placed")
             ])
@@ -38,10 +38,10 @@ pub fn build_args() -> ArgMatches {
                     .short('c')
                     .long("catg")
                     .help("Category to put the URL in"),
-                Arg::new("date")
-                    .long("date")
-                    .value_parser(validate_date)
-                    .help("Date of when the bookmark was added [default: today, format: yyyy-mm-dd]"),
+                // Arg::new("date")
+                //     .long("date")
+                //     .value_parser(validate_date)
+                //     .help("Date of when the bookmark was added [default: today, format: yyyy-mm-dd]"),
             ]),
         )
         .subcommand(

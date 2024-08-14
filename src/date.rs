@@ -9,7 +9,7 @@ use anyhow::{ensure, Result};
 use regex::Regex;
 
 #[derive(PartialEq)]
-struct Datetime {
+pub struct Datetime {
     year: u32,
     month: u8,
     day: u8,
@@ -232,6 +232,13 @@ pub fn validate_date(arg: &str) -> Result<String> {
 
     let today_datetime = get_datetime_for_epochs(epoch);
     Ok(arg.to_owned())
+}
+
+pub fn get_current_datetime() -> Datetime {
+    let today = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("Duration befor Unix Epoch");
+    return get_datetime_for_epochs(today.as_secs());
 }
 
 #[test]

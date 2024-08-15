@@ -26,6 +26,10 @@ pub fn build_args() -> ArgMatches {
                     .long("url")
                     .required(true)
                     .help("URL to bookmark"),
+                Arg::new("name")
+                    .short('n')
+                    .long("name")
+                    .help("Name for the URL"),
                 Arg::new("tags")
                     .short('t')
                     .long("tag")

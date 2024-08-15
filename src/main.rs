@@ -2,23 +2,9 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use bmark_rs::{is_setup_done, BMark};
-use clap::ArgMatches;
 
 mod cli;
 mod date;
-
-fn perform_add_task(matches: &ArgMatches) -> Result<()> {
-    let url = matches
-        .get_one::<String>("url")
-        .expect("Passing URL is must");
-    // let conn = get_db_connection(None)?;
-    // create_table(&conn, "new_table")?;
-    println!("url passed: {}\n", url);
-
-    date::validate_date("").expect("Some date");
-
-    Ok(())
-}
 
 fn main() -> Result<()> {
     let matches = cli::build_args();
@@ -26,9 +12,13 @@ fn main() -> Result<()> {
     match matches.subcommand() {
         Some(("setup", setup_task)) => {
             let dbpath = setup_task.get_one::<PathBuf>("dbpath");
-            let bmark = BMark::new(dbpath.unwrap().to_owned())?;
-            bmark.setup()?;
-            println!("Setup completed successfully!!!");
+            if is_setup_done()? {
+                println!("Setup is already done.");
+            } else {
+                let bmark = BMark::new(dbpath.unwrap().to_owned())?;
+                bmark.setup()?;
+                println!("Setup completed successfully!!!");
+            }
         }
         Some(("add", add_task)) => {
             // check here if the app is setup, by checking dbpath
@@ -37,6 +27,8 @@ fn main() -> Result<()> {
                 let url = add_task
                     .get_one::<String>("url")
                     .expect("Providing URL is must");
+                let name = add_task
+                    .get_one::<String>("name");
                 let tags = add_task
                     .get_many::<String>("tags")
                     .unwrap_or_default()
@@ -46,6 +38,7 @@ fn main() -> Result<()> {
                 let category = add_task.get_one::<String>("category");
                 bmark.insert(
                     &url,
+                    name.map(|s| s.as_str()),
                     tags,
                     desc.map(|s| s.as_str()),
                     category.map(|s| s.as_str()),

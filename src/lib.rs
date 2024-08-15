@@ -1,10 +1,11 @@
 use std::{
     fs::{self, File},
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::{Context, Result};
-use rusqlite::Connection;
+use rusqlite::{params, Connection, Error::QueryReturnedNoRows, OptionalExtension};
+use uuid::{NoContext, Timestamp};
 
 mod date;
 
@@ -14,10 +15,10 @@ pub enum BMarkTask {
     },
     Add {
         url: String,
+        name: String,
         tags: Vec<String>,
         desc: Option<String>,
         category: Option<PathBuf>,
-        // date: String,
     },
     List {
         output: Option<OutputType>,
@@ -66,9 +67,9 @@ impl BMark {
     }
 
     pub fn setup(&self) -> Result<()> {
-        let bmark_schema = "CREATE TABLE bmark ( id TEXT PRIMARY KEY, url TEXT NOT NULL, description TEXT, category TEXT, name TEXT, added_at DATETIME);";
-        let tag_schema = "CREATE TABLE tag ( id TEXT PRIMARY KEY, name TEXT UNIQUE NOT NULL);";
-        let bmark_tag_schema = "CREATE TABLE bmark_tag ( bmark_id TEXT, tag_id TEXT, FOREIGN KEY (bmark_id) REFERENCES bmark(id), FOREIGN KEY (tag_id) REFERENCES tag(id), PRIMARY KEY (bmark_id, tag_id));";
+        let bmark_schema = "CREATE TABLE bmark ( id TEXT PRIMARY KEY, url TEXT NOT NULL, name TEXT, description TEXT, category TEXT, added_at TEXT NOT NULL DEFAULT current_timestamp);";
+        let tag_schema = "CREATE TABLE tag ( id TEXT PRIMARY KEY, name TEXT UNIQUE NOT NULL, added_at TEXT NOT NULL DEFAULT current_timestamp);";
+        let bmark_tag_schema = "CREATE TABLE bmark_tag ( bmark_id TEXT, tag_id TEXT, created_at TEXT NOT NULL DEFAULT current_timestamp, FOREIGN KEY (bmark_id) REFERENCES bmark(id), FOREIGN KEY (tag_id) REFERENCES tag(id), PRIMARY KEY (bmark_id, tag_id));";
 
         create_table(&self.conn, bmark_schema)?;
         create_table(&self.conn, tag_schema)?;
@@ -80,16 +81,43 @@ impl BMark {
     pub fn insert(
         &self,
         url: &str,
+        name: Option<&str>,
         tags: Vec<&str>,
         desc: Option<&str>,
         category: Option<&str>,
     ) -> Result<()> {
-        let datetime = date::get_current_datetime();
-        println!("url: {}", url);
-        println!("tags: {}", tags.join(", "));
-        println!("desc: {}", desc.unwrap_or("Nothing"));
-        println!("category: {}", category.unwrap_or("Nothing"));
-        println!("datetime: {}", datetime);
+        // insert bmark
+        let added_at = format!("{}", date::get_current_datetime());
+        let epoch = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Duration befor Unix Epoch");
+        let ts = Timestamp::from_unix(NoContext, epoch.as_secs(), 0);
+        let bmark_uuid = uuid::Uuid::new_v7(ts).hyphenated().to_string();
+        self.conn.execute("INSERT INTO bmark (id, url, name, description, category, added_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![bmark_uuid, url, name, desc, category, added_at])?;
+
+        // check and insert tags
+        let mut tag_uuids: Vec<String> = vec![];
+        if !tags.is_empty() {
+            let tags_not_present = tags.iter().filter(|&&t| {
+                let query_tag = format!("Select id from tag where name='{}'", t);
+                let tag_id = self.conn.query_row(&query_tag, [], |row| row.get::<_, String>(0)).optional().unwrap();
+                if let Some(tag_id) = &tag_id {
+                    tag_uuids.push(tag_id.clone());
+                }
+                return tag_id.is_none();
+            }).collect::<Vec<_>>();
+            for tag in tags_not_present {
+                let uuid = uuid::Uuid::new_v7(ts).hyphenated().to_string();
+                tag_uuids.push(uuid.clone());
+                self.conn.execute("INSERT INTO tag (id, name, added_at) VALUES(?1, ?2, ?3)", params![uuid, tag, added_at])?;
+            }
+        }
+
+        // make bmark-tag relation
+        for tag_uuid in tag_uuids {
+            self.conn.execute("INSERT INTO bmark_tag (bmark_id, tag_id) VALUES(?1, ?2)", params![bmark_uuid, tag_uuid])?;
+        }
         Ok(())
     }
 }
@@ -111,18 +139,17 @@ pub fn is_setup_done() -> Result<bool> {
     let tables = vec!["bmark", "tag", "bmark_tag"];
     let conn = get_db_connection(Some(&path.to_path_buf())).unwrap();
     let mut stmt = conn.prepare("SELECT name FROM sqlite_master WHERE name=?1")?;
-    let res_bmark = stmt.query_row(&[tables[0]], |row| row.get::<_, String>(0))?;
-    if &res_bmark != tables[0] {
+    let res_bmark = stmt.query_row(&[tables[0]], |row| row.get::<_, String>(0));
+    if res_bmark == Err(QueryReturnedNoRows) {
         return Ok(false);
     }
-    let res_tag = stmt.query_row(&[tables[1]], |row| row.get::<_, String>(0))?;
-    if &res_tag != tables[1] {
-        return Ok(false);
+    let res_tag = stmt.query_row(&[tables[1]], |row| row.get::<_, String>(0));
+    if res_tag == Err(QueryReturnedNoRows) {
+        return Ok(false)
     }
-    let res_bmark_tag = stmt.query_row(&[tables[2]], |row| row.get::<_, String>(0))?;
-    if &res_bmark_tag != tables[2] {
-        return Ok(false);
-    }
+    let res_bmark_tag = stmt.query_row(&[tables[2]], |row| row.get::<_, String>(0));
+    if res_bmark_tag == Err(QueryReturnedNoRows) {
+        return Ok(false); }
 
     return Ok(true);
 }

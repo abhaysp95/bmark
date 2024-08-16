@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use rusqlite::{params, Connection, Error::QueryReturnedNoRows, OptionalExtension};
+use rusqlite::{params, Connection, Error::{self, QueryReturnedNoRows}, OptionalExtension, Row};
 use uuid::{NoContext, Timestamp};
 
 mod date;
@@ -27,11 +27,13 @@ pub enum BMarkTask {
     },
 }
 
+#[derive(Clone)]
 pub enum OutputType {
-    All(bool),
+    All,
     Tag(Vec<String>),
 }
 
+#[derive(Clone)]
 pub enum ListColumn {
     All,
     Url,
@@ -42,6 +44,15 @@ pub enum ListColumn {
 pub enum TagMode {
     All,
     Any,
+}
+
+#[allow(dead_code)]
+pub struct Bookmark {
+    url: String,
+    name: String,
+    tag: Vec<String>,
+    desc: Option<String>,
+    category: Option<String>,
 }
 
 fn create_table(conn: &Connection, schema: &str) -> Result<()> {
@@ -122,6 +133,33 @@ impl BMark {
         }
 
         Ok(tx.commit()?)
+    }
+
+    fn make_row(row: &Row, range: usize) -> Result<String, Error> {
+        let mut res = String::new();
+        for i in 0..=range {
+            res.push_str(&row.get::<_, String>(i)?.to_string());
+            if i < range {
+                res.push('|');
+            }
+        }
+
+        return Ok(res);
+    }
+
+    pub fn list(&self, output_type: &OutputType, column: &ListColumn) -> Result<()> {
+        _ = output_type;
+        _ = column;
+        let mut stmt = self.conn.prepare("SELECT b.url, b.name, t.name, b.description, b.category FROM bmark b LEFT JOIN bmark_tag bt ON bt.bmark_id=b.id LEFT JOIN tag t ON bt.tag_id=t.id")?;
+        let rows = stmt.query_map([], |row| Self::make_row(row, 4))?;
+
+        for row in rows {
+            if let Ok(row) = row {
+                println!("{}", row);
+            }
+        }
+
+        Ok(())
     }
 }
 

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use anyhow::Result;
-use bmark_rs::{is_setup_done, BMark};
+use anyhow::{Context, Result};
+use bmark_rs::{is_setup_done, BMark, ListColumn, OutputType};
 
 mod cli;
 mod date;
@@ -47,7 +47,18 @@ fn main() -> Result<()> {
                 println!("You need to do setup first. Run: bmark setup --help for more info");
             }
         }
-        Some(("list", list_task)) => {}
+        Some(("list", list_task)) => {
+            if is_setup_done()? {
+                let bmark = BMark::new("./local/bmark/bmark.db", false)?; // probably provide a config where custom dbpath can be stored on setup, or give option in add for dbpath also
+                // figure out how to use the enums in this get_one::<_> fish operator directly
+                let output = list_task.get_one::<OutputType>("output").unwrap_or_else(|| &OutputType::All);
+                let column = list_task.get_one::<ListColumn>("cols").unwrap();
+                // let output_type = if output == "all" { OutputType::All } else { OutputType::Tag(vec![])};
+                bmark.list(output, column).with_context(|| format!("Failed to list the bookmarks"))?;
+            } else {
+                println!("You need to do setup first nd then add the bookmarks. Run: bmark --help for more info");
+            }
+        }
         _ => {}
     }
 

@@ -32,7 +32,7 @@ pub fn build_args() -> ArgMatches {
                     .short('t')
                     .long("tag")
                     .action(ArgAction::Append)
-                    .help("Provide tags to bookmark"),
+                    .help("Provide tags to bookmark [support multiple tags]"),
                 Arg::new("description")
                     .long("desc")
                     .help("Additional note for bookmark"),
@@ -59,7 +59,7 @@ pub fn build_args() -> ArgMatches {
                         .short('t')
                         .long("tag")
                         .action(ArgAction::Append)
-                        .help("List out bookmarks related to tag"),
+                        .help("List out bookmarks related to tag [support multiple tags]"),
                 ])
                 .group(ArgGroup::new("output").args(["all", "tag"]))
                 .arg(

@@ -231,6 +231,7 @@ fn parse_date(arg: &str) -> Result<Datetime> {
 }
 
 
+#[allow(dead_code)]
 pub fn get_current_datetime() -> Datetime {
     let today = SystemTime::now()
         .duration_since(UNIX_EPOCH)

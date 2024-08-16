@@ -100,7 +100,6 @@ impl BMark {
         }).collect::<Vec<_>>();
 
         // insert bmark
-        let added_at = format!("{}", date::get_current_datetime());
         let epoch = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Duration befor Unix Epoch");
@@ -108,13 +107,13 @@ impl BMark {
         let bmark_uuid = uuid::Uuid::new_v7(ts).hyphenated().to_string();
 
         let tx = self.conn.transaction()?;
-        tx.execute("INSERT INTO bmark (id, url, name, description, category, added_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-             params![bmark_uuid, url, name, desc, category, added_at])?;
+        tx.execute("INSERT INTO bmark (id, url, name, description, category) VALUES (?1, ?2, ?3, ?4, ?5)",
+             params![bmark_uuid, url, name, desc, category])?;
 
         for tag in tags_not_present {
             let uuid = uuid::Uuid::new_v7(ts).hyphenated().to_string();
             tag_uuids.push(uuid.clone());
-            tx.execute("INSERT INTO tag (id, name, added_at) VALUES(?1, ?2, ?3)", params![uuid, tag, added_at])?;
+            tx.execute("INSERT INTO tag (id, name) VALUES(?1, ?2)", params![uuid, tag])?;
         }
 
         // make bmark-tag relation

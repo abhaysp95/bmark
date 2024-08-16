@@ -15,7 +15,7 @@ fn main() -> Result<()> {
             if is_setup_done()? {
                 println!("Setup is already done.");
             } else {
-                let bmark = BMark::new(dbpath.unwrap().to_owned())?;
+                let bmark = BMark::new(dbpath.unwrap().to_owned(), true)?;
                 bmark.setup()?;
                 println!("Setup completed successfully!!!");
             }
@@ -23,7 +23,7 @@ fn main() -> Result<()> {
         Some(("add", add_task)) => {
             // check here if the app is setup, by checking dbpath
             if is_setup_done()? {
-                let bmark = BMark::new("./local/bmark/bmark.db")?; // probably provide a config where custom dbpath can be stored on setup, or give option in add for dbpath also
+                let mut bmark = BMark::new("./local/bmark/bmark.db", false)?; // probably provide a config where custom dbpath can be stored on setup, or give option in add for dbpath also
                 let url = add_task
                     .get_one::<String>("url")
                     .expect("Providing URL is must");

@@ -54,12 +54,14 @@ pub struct BMark {
 }
 
 impl BMark {
-    pub fn new<P>(path: P) -> Result<Self>
+    pub fn new<P>(path: P, perform_setup: bool) -> Result<Self>
     where
         P: AsRef<Path>,
     {
-        _ = fs::create_dir_all(path.as_ref().parent().unwrap())?;
-        _ = File::create(path.as_ref())?;
+        if perform_setup {
+            _ = fs::create_dir_all(path.as_ref().parent().unwrap())?;
+            _ = File::create(path.as_ref())?;
+        }
         return Ok(BMark {
             conn: get_db_connection(Some(&path.as_ref().to_path_buf()))
                 .expect("Connection to db needs to be created"),
@@ -79,13 +81,24 @@ impl BMark {
     }
 
     pub fn insert(
-        &self,
+        &mut self,
         url: &str,
         name: Option<&str>,
         tags: Vec<&str>,
         desc: Option<&str>,
         category: Option<&str>,
     ) -> Result<()> {
+        let mut tag_uuids: Vec<String> = vec![];
+
+        let tags_not_present = tags.iter().filter(|&&t| {
+            let query_tag = format!("Select id from tag where name='{}'", t);
+            let tag_id = self.conn.query_row(&query_tag, [], |row| row.get::<_, String>(0)).optional().unwrap();
+            if let Some(tag_id) = &tag_id {
+                tag_uuids.push(tag_id.clone());
+            }
+            return tag_id.is_none();
+        }).collect::<Vec<_>>();
+
         // insert bmark
         let added_at = format!("{}", date::get_current_datetime());
         let epoch = SystemTime::now()
@@ -93,32 +106,23 @@ impl BMark {
             .expect("Duration befor Unix Epoch");
         let ts = Timestamp::from_unix(NoContext, epoch.as_secs(), 0);
         let bmark_uuid = uuid::Uuid::new_v7(ts).hyphenated().to_string();
-        self.conn.execute("INSERT INTO bmark (id, url, name, description, category, added_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![bmark_uuid, url, name, desc, category, added_at])?;
 
-        // check and insert tags
-        let mut tag_uuids: Vec<String> = vec![];
-        if !tags.is_empty() {
-            let tags_not_present = tags.iter().filter(|&&t| {
-                let query_tag = format!("Select id from tag where name='{}'", t);
-                let tag_id = self.conn.query_row(&query_tag, [], |row| row.get::<_, String>(0)).optional().unwrap();
-                if let Some(tag_id) = &tag_id {
-                    tag_uuids.push(tag_id.clone());
-                }
-                return tag_id.is_none();
-            }).collect::<Vec<_>>();
-            for tag in tags_not_present {
-                let uuid = uuid::Uuid::new_v7(ts).hyphenated().to_string();
-                tag_uuids.push(uuid.clone());
-                self.conn.execute("INSERT INTO tag (id, name, added_at) VALUES(?1, ?2, ?3)", params![uuid, tag, added_at])?;
-            }
+        let tx = self.conn.transaction()?;
+        tx.execute("INSERT INTO bmark (id, url, name, description, category, added_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+             params![bmark_uuid, url, name, desc, category, added_at])?;
+
+        for tag in tags_not_present {
+            let uuid = uuid::Uuid::new_v7(ts).hyphenated().to_string();
+            tag_uuids.push(uuid.clone());
+            tx.execute("INSERT INTO tag (id, name, added_at) VALUES(?1, ?2, ?3)", params![uuid, tag, added_at])?;
         }
 
         // make bmark-tag relation
         for tag_uuid in tag_uuids {
-            self.conn.execute("INSERT INTO bmark_tag (bmark_id, tag_id) VALUES(?1, ?2)", params![bmark_uuid, tag_uuid])?;
+            tx.execute("INSERT INTO bmark_tag (bmark_id, tag_id) VALUES(?1, ?2)", params![bmark_uuid, tag_uuid])?;
         }
-        Ok(())
+
+        Ok(tx.commit()?)
     }
 }
 

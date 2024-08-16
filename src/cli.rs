@@ -2,8 +2,6 @@ use std::path::PathBuf;
 
 use clap::{value_parser, Arg, ArgAction, ArgGroup, ArgMatches, Command};
 
-use crate::date::validate_date;
-
 pub fn build_args() -> ArgMatches {
     return Command::new("bmark")
         // .no_binary_name(true)

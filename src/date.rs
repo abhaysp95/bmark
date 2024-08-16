@@ -9,6 +9,7 @@ use anyhow::{ensure, Result};
 use regex::Regex;
 
 #[derive(PartialEq)]
+#[allow(dead_code)]
 pub struct Datetime {
     year: u32,
     month: u8,
@@ -18,6 +19,7 @@ pub struct Datetime {
     second: u8,
 }
 
+#[allow(dead_code)]
 fn get_month_name_from_index<T>(idx: T) -> String
 where
     T: Into<u8>,
@@ -54,6 +56,7 @@ impl Display for Datetime {
     }
 }
 
+#[allow(dead_code)]
 fn is_leap_year(year: u32) -> bool {
     return if year % 400 == 0 || (year % 4 == 0 && year % 100 != 0) {
         true
@@ -64,6 +67,7 @@ fn is_leap_year(year: u32) -> bool {
 
 /// Get `DateTime` for provided `epoch` (seconds)
 /// This doesn't considers your timezone and returns `DateTime` which will be UTC in 24-hour format
+#[allow(dead_code)]
 fn get_datetime_for_epochs(epoch: u64) -> Datetime {
     let days_since_epoch = epoch / 86400;
     let mut cyear = 1970; // epoch year start
@@ -131,6 +135,7 @@ fn get_datetime_for_epochs(epoch: u64) -> Datetime {
     };
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 enum DatetimeError {
     ParsingError(String),
@@ -158,6 +163,7 @@ impl Error for DatetimeError {
     }
 }
 
+#[allow(dead_code)]
 fn parse_date(arg: &str) -> Result<Datetime> {
     let re = Regex::new(r"^(?P<year>\d{4})-(?P<mon>\d{2})-(?P<day>\d{2}) (?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})$")
         .map_err(|_| eprintln!("Failed to create regex")).unwrap();
@@ -224,15 +230,6 @@ fn parse_date(arg: &str) -> Result<Datetime> {
     })
 }
 
-pub fn validate_date(arg: &str) -> Result<String> {
-    let today = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("Duration before Unix Epoch");
-    let epoch = today.as_secs();
-
-    let today_datetime = get_datetime_for_epochs(epoch);
-    Ok(arg.to_owned())
-}
 
 pub fn get_current_datetime() -> Datetime {
     let today = SystemTime::now()

@@ -35,6 +35,7 @@ pub fn build_args() -> ArgMatches {
                 Arg::new("name")
                     .short('n')
                     .long("name")
+                    .required(true)
                     .help("Name for the URL"),
                 Arg::new("tags")
                     .short('t')

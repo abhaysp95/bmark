@@ -1,6 +1,5 @@
 use std::{
-    fs::{self, File},
-    path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH},
+    collections::HashMap, fs::{self, File}, path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}
 };
 
 use anyhow::{Context, Result};
@@ -47,9 +46,10 @@ pub enum TagMode {
 }
 
 #[allow(dead_code)]
+#[derive(Debug)]
 pub struct Bookmark {
     url: String,
-    name: String,
+    name: Option<String>,
     tag: Vec<String>,
     desc: Option<String>,
     category: Option<String>,
@@ -139,7 +139,9 @@ impl BMark {
         let mut res = String::new();
         for i in 0..range {
             res.push_str(match &row.get::<_, String>(i) {
-                Ok(s) => s,
+                Ok(s) => {
+                    s
+                },
                 Err(e) => {
                     match e {
                         Error::InvalidColumnType(sz, name, t) => {
@@ -164,35 +166,94 @@ impl BMark {
         match output_type {
             OutputType::All => {
                 let mut stmt = String::from("SELECT ");
+                let join_stmt = "FROM bmark b LEFT JOIN bmark_tag bt ON bt.bmark_id=b.id LEFT JOIN tag t ON bt.tag_id=t.id";
                 let col_count: usize;
                 match column {
                     ListColumn::All => {
-                        stmt.push_str("b.url, b.name, t.name, b.description, b.category ");
+                        stmt.push_str("b.id, b.url, b.name, t.name, b.description, b.category ");
+                        stmt.push_str(join_stmt);
+                        let mut prepared_stmt = self.conn.prepare(&stmt)?;
                         col_count = 5;
+                        let mut bmark_map: HashMap<String, Bookmark> = HashMap::new();
+                        let rows = prepared_stmt.query_map([], |row| {
+                            let mut bid: String = String::new();
+                            let mut url: String = String::new();
+                            let mut name: String = String::new();
+                            let mut desc: Option<String> = None;
+                            let mut category: Option<String> = None;
+                            let mut tag: Vec<String> = vec![];
+                            for i in 0..col_count {
+                                match &row.get::<_, String>(i) {
+                                    Ok(s) => {
+                                        if i == 0 {
+                                            bid = s.to_owned();
+                                        } else if i == 1 {
+                                            url = s.to_owned();
+                                        } else if i == 2 {
+                                            name = s.to_owned();
+                                        } else if i == 3 {
+                                            tag.push(s.to_owned());
+                                        } else if i == 4 {
+                                            desc = Some(s.to_owned());
+                                        } else if i == 5 {
+                                            category = Some(s.to_owned());
+                                        }
+
+                                    },
+                                    Err(_) => {},
+                                }
+                            }
+                            let bookmark = Bookmark {
+                                url,
+                                name: Some(name),
+                                tag,
+                                desc,
+                                category,
+                            };
+
+                            Ok((bid, bookmark))
+                        })?;
+
+                        for row in rows {
+                            if let Ok(mut row) = row {
+                                match bmark_map.get_mut(&row.0) {
+                                    Some(ref mut b) => {
+                                        b.tag.append(&mut row.1.tag);
+                                    },
+                                    None => {
+                                        bmark_map.insert(row.0, row.1);
+                                    }
+                                }
+                            }
+                        }
+
+                        for bmark in bmark_map.values() {
+                            println!("{:?}", bmark);
+                        }
                     },
                     ListColumn::Url => {
-                        stmt.push_str("b.url ");
-                        col_count = 1;
-                    }
-                    ListColumn::Desc => {
-                        stmt.push_str("b.url, b.description ");
+                        stmt.push_str("b.id, b.url ");
                         col_count = 2;
                     }
+                    ListColumn::Desc => {
+                        stmt.push_str("b.id, b.url, b.description ");
+                        col_count = 3;
+                    }
                     ListColumn::Tag => {
-                        stmt.push_str("b.url, t.name ");
-                        col_count = 2
+                        stmt.push_str("b.id, b.url, t.name ");
+                        col_count = 3
                     }
                 }
-                stmt.push_str("FROM bmark b LEFT JOIN bmark_tag bt ON bt.bmark_id=b.id LEFT JOIN tag t ON bt.tag_id=t.id");
-                let mut prepared_stmt = self.conn.prepare(&stmt)?;
-                // why is this limiting row count to 4 ?
-                let rows = prepared_stmt.query_map([], |row| Self::make_row(row, col_count))?;
-
-                for row in rows {
-                    if let Ok(row) = row {
-                        println!("{}", row);
-                    }
-                }
+                // stmt.push_str("FROM bmark b LEFT JOIN bmark_tag bt ON bt.bmark_id=b.id LEFT JOIN tag t ON bt.tag_id=t.id");
+                // let mut prepared_stmt = self.conn.prepare(&stmt)?;
+                // // why is this limiting row count to 4 ?
+                // let rows = prepared_stmt.query_map([], |row| Self::make_row(row, col_count))?;
+                //
+                // for row in rows {
+                //     if let Ok(row) = row {
+                //         println!("{}", row);
+                //     }
+                // }
             },
             OutputType::Tag(_) => {},
         }

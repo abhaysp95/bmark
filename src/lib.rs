@@ -147,10 +147,11 @@ impl BMark {
         return Ok(res);
     }
 
-    pub fn list(&self, output_type: &OutputType, column: &ListColumn) -> Result<()> {
+    pub fn list(&self, output_type: OutputType, column: ListColumn) -> Result<()> {
         _ = output_type;
         _ = column;
         let mut stmt = self.conn.prepare("SELECT b.url, b.name, t.name, b.description, b.category FROM bmark b LEFT JOIN bmark_tag bt ON bt.bmark_id=b.id LEFT JOIN tag t ON bt.tag_id=t.id")?;
+        // why is this limiting row count to 4 ?
         let rows = stmt.query_map([], |row| Self::make_row(row, 4))?;
 
         for row in rows {

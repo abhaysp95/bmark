@@ -22,6 +22,14 @@ pub fn build_args() -> ArgMatches {
                 Arg::new("url")
                     .short('u')
                     .long("url")
+                    // Will add url validation and stuff once I figure out the lifetime issue here
+                    // .value_parser(|s: &str| {
+                    //     if s.contains("|") {
+                    //         Err(clap::Error::new(clap::error::ErrorKind::ValueValidation))
+                    //     } else {
+                    //         Ok(s)
+                    //     }
+                    // })
                     .required(true)
                     .help("URL to bookmark"),
                 Arg::new("name")

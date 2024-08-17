@@ -137,7 +137,7 @@ impl BMark {
 
     fn make_row(row: &Row, range: usize) -> Result<String, Error> {
         let mut res = String::new();
-        for i in 0..=range {
+        for i in 0..range {
             res.push_str(match &row.get::<_, String>(i) {
                 Ok(s) => s,
                 Err(e) => {
@@ -152,7 +152,7 @@ impl BMark {
                     }
                 },
             });
-            if i < range {
+            if i + 1 < range {
                 res.push('|');
             }
         }
@@ -161,17 +161,43 @@ impl BMark {
     }
 
     pub fn list(&self, output_type: OutputType, column: ListColumn) -> Result<()> {
+        match output_type {
+            OutputType::All => {
+                let mut stmt = String::from("SELECT ");
+                let col_count: usize;
+                match column {
+                    ListColumn::All => {
+                        stmt.push_str("b.url, b.name, t.name, b.description, b.category ");
+                        col_count = 5;
+                    },
+                    ListColumn::Url => {
+                        stmt.push_str("b.url ");
+                        col_count = 1;
+                    }
+                    ListColumn::Desc => {
+                        stmt.push_str("b.url, b.description ");
+                        col_count = 2;
+                    }
+                    ListColumn::Tag => {
+                        stmt.push_str("b.url, t.name ");
+                        col_count = 2
+                    }
+                }
+                stmt.push_str("FROM bmark b LEFT JOIN bmark_tag bt ON bt.bmark_id=b.id LEFT JOIN tag t ON bt.tag_id=t.id");
+                let mut prepared_stmt = self.conn.prepare(&stmt)?;
+                // why is this limiting row count to 4 ?
+                let rows = prepared_stmt.query_map([], |row| Self::make_row(row, col_count))?;
+
+                for row in rows {
+                    if let Ok(row) = row {
+                        println!("{}", row);
+                    }
+                }
+            },
+            OutputType::Tag(_) => {},
+        }
         _ = output_type;
         _ = column;
-        let mut stmt = self.conn.prepare("SELECT b.url, b.name, t.name, b.description, b.category FROM bmark b LEFT JOIN bmark_tag bt ON bt.bmark_id=b.id LEFT JOIN tag t ON bt.tag_id=t.id")?;
-        // why is this limiting row count to 4 ?
-        let rows = stmt.query_map([], |row| Self::make_row(row, 4))?;
-
-        for row in rows {
-            if let Ok(row) = row {
-                println!("{}", row);
-            }
-        }
 
         Ok(())
     }

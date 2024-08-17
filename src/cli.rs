@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use bmark_rs::ListColumn;
 use clap::{value_parser, Arg, ArgAction, ArgGroup, ArgMatches, Command};
 
 pub fn build_args() -> ArgMatches {
@@ -62,21 +61,13 @@ pub fn build_args() -> ArgMatches {
                         .action(ArgAction::Append)
                         .help("List out bookmarks related to tag [support multiple tags]"),
                 ])
-                .group(ArgGroup::new("output").args(["all", "tag"]))
+                .group(ArgGroup::new("output").args(["all", "tag"]).required(true))
                 .arg(
                     Arg::new("cols")
                         .short('c')
                         .long("cols")
                         .default_value("all")
-                        .value_parser(|str| {
-                            return if str == "all" {
-                                Ok(ListColumn::All)
-                            } else if str == "tags" {
-                                Ok(ListColumn::Tag)
-                            } else {
-                                Err(clap::Error::new(clap::error::ErrorKind::InvalidValue))
-                            };
-                        })
+                        .value_parser(["all", "url", "desc", "tags"])
                         .help("List the specified cols")
                         .long_help(
                             "List the specified columns.

@@ -50,11 +50,23 @@ fn main() -> Result<()> {
         Some(("list", list_task)) => {
             if is_setup_done()? {
                 let bmark = BMark::new("./local/bmark/bmark.db", false)?; // probably provide a config where custom dbpath can be stored on setup, or give option in add for dbpath also
-                // figure out how to use the enums in this get_one::<_> fish operator directly
-                let output = list_task.get_one::<OutputType>("output").unwrap_or_else(|| &OutputType::All);
-                let column = list_task.get_one::<ListColumn>("cols").unwrap();
-                // let output_type = if output == "all" { OutputType::All } else { OutputType::Tag(vec![])};
-                bmark.list(output, column).with_context(|| format!("Failed to list the bookmarks"))?;
+                let output = if let Some(t) = list_task.get_many::<String>("tag") {
+                    let tags = t.map(|s| s.to_owned()).collect::<Vec<_>>();
+                    OutputType::Tag(tags)
+                } else {
+                    OutputType::All
+                };
+                let column = list_task.get_one::<String>("cols").unwrap();
+
+                let mut column_type: ListColumn = ListColumn::All;
+                if column == "url" {
+                    column_type = ListColumn::Url;
+                } else if column == "desc" {
+                    column_type = ListColumn::Desc;
+                } else if column == "tags" {
+                    column_type = ListColumn::Tag;
+                }
+                bmark.list(output, column_type).with_context(|| format!("Failed to list the bookmarks"))?;
             } else {
                 println!("You need to do setup first nd then add the bookmarks. Run: bmark --help for more info");
             }

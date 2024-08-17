@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use rusqlite::{params, Connection, Error::{self, QueryReturnedNoRows}, OptionalExtension, Row};
+use rusqlite::{params, types::Type, Connection, Error::{self, QueryReturnedNoRows}, OptionalExtension, Row};
 use uuid::{NoContext, Timestamp};
 
 mod date;
@@ -138,7 +138,20 @@ impl BMark {
     fn make_row(row: &Row, range: usize) -> Result<String, Error> {
         let mut res = String::new();
         for i in 0..=range {
-            res.push_str(&row.get::<_, String>(i)?.to_string());
+            res.push_str(match &row.get::<_, String>(i) {
+                Ok(s) => s,
+                Err(e) => {
+                    match e {
+                        Error::InvalidColumnType(sz, name, t) => {
+                            match t {
+                                Type::Null => "",
+                                _ => return Err(Error::InvalidColumnType(sz.to_owned(), name.to_owned(), t.to_owned()))
+                            }
+                        },
+                        e => panic!("Error occurred during retrieving data: {}", e)
+                    }
+                },
+            });
             if i < range {
                 res.push('|');
             }

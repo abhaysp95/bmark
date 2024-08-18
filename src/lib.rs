@@ -47,12 +47,36 @@ pub enum TagMode {
 
 #[allow(dead_code)]
 #[derive(Debug)]
-pub struct Bookmark {
+struct BookmarkAll {
     url: String,
     name: Option<String>,
     tag: Vec<String>,
     desc: Option<String>,
     category: Option<String>,
+}
+
+#[derive(Debug)]
+struct BookmarkUrl {
+    url: String,
+}
+
+#[derive(Debug)]
+struct BookmarkDesc {
+    url: String,
+    desc: Option<String>,
+}
+
+#[derive(Debug)]
+struct BookmarkTag {
+    url: String,
+    tag: Vec<String>,
+}
+
+enum BookmarkView {
+    All(Vec<BookmarkAll>),
+    Url(Vec<BookmarkUrl>),
+    Desc(Vec<BookmarkDesc>),
+    Tags(Vec<BookmarkTag>),
 }
 
 fn create_table(conn: &Connection, schema: &str) -> Result<()> {
@@ -162,6 +186,8 @@ impl BMark {
         return Ok(res);
     }
 
+    // NOTE: when I'll make change in the list in cli.rs, this logic will be changed and instead of
+    // having struct for combinations which I think is useful, something generic will be needed
     pub fn list(&self, output_type: OutputType, column: ListColumn) -> Result<()> {
         match output_type {
             OutputType::All => {
@@ -174,7 +200,7 @@ impl BMark {
                         stmt.push_str(join_stmt);
                         let mut prepared_stmt = self.conn.prepare(&stmt)?;
                         col_count = 5;
-                        let mut bmark_map: HashMap<String, Bookmark> = HashMap::new();
+                        let mut bmark_map: HashMap<String, BookmarkAll> = HashMap::new();
                         let rows = prepared_stmt.query_map([], |row| {
                             let mut bid: String = String::new();
                             let mut url: String = String::new();
@@ -198,12 +224,11 @@ impl BMark {
                                         } else if i == 5 {
                                             category = Some(s.to_owned());
                                         }
-
                                     },
                                     Err(_) => {},
                                 }
                             }
-                            let bookmark = Bookmark {
+                            let bookmark = BookmarkAll {
                                 url,
                                 name: Some(name),
                                 tag,
@@ -231,17 +256,89 @@ impl BMark {
                             println!("{:?}", bmark);
                         }
                     },
+                    // NOTE: Has problem of duplicacy. Will fix on second iteration of listing
                     ListColumn::Url => {
-                        stmt.push_str("b.id, b.url ");
-                        col_count = 2;
+                        stmt.push_str("b.url ");
+                        stmt.push_str(join_stmt);
+                        let mut prepared_stmt = self.conn.prepare(&stmt)?;
+                        let rows = prepared_stmt.query_map([], |row| {
+                            Ok(BookmarkUrl {
+                                url: row.get::<_, String>(0)?,
+                            })
+                        })?;
+
+                        for row in rows {
+                            if let Ok(row) = row {
+                                println!("{:?}", row);
+                            }
+                        }
                     }
+                    // NOTE: Has problem of duplicacy. Will fix on second iteration of listing
                     ListColumn::Desc => {
-                        stmt.push_str("b.id, b.url, b.description ");
-                        col_count = 3;
+                        stmt.push_str("b.url, b.description ");
+                        col_count = 2;
+                        stmt.push_str(join_stmt);
+                        let mut prepared_stmt = self.conn.prepare(&stmt)?;
+                        let rows = prepared_stmt.query_map([], |row| {
+                            let mut url = String::new();
+                            let mut desc = None;
+                            for i in 0..col_count {
+                                let s = row.get::<_, String>(i).ok();
+                                if i == 0 {
+                                    url = s.expect("Error retrieving URL from db");
+                                } else if i == 1 { 
+                                    desc = s;
+                                }
+                            }
+                            Ok(BookmarkDesc {
+                                url,
+                                desc,
+                            })
+                        })?;
+
+                        for row in rows {
+                            if let Ok(row) = row {
+                                println!("{:?}", row);
+                            }
+                        }
                     }
                     ListColumn::Tag => {
                         stmt.push_str("b.id, b.url, t.name ");
-                        col_count = 3
+                        col_count = 3;
+                        stmt.push_str(join_stmt);
+                        let mut prepared_stmt = self.conn.prepare(&stmt)?;
+                        let rows = prepared_stmt.query_map([], |row| {
+                            let mut bid = String::new();
+                            let mut url = String::new();
+                            let mut tag = vec![];
+                            for i in 0..col_count {
+                                if i == 0 {
+                                    bid = row.get::<_, String>(i).ok().expect("Error in retrieving bookmark id");
+                                } else if i == 1 {
+                                    url = row.get::<_, String>(i).ok().expect("Error in getting bookmarked url");
+                                } else {
+                                    tag = row.get::<_, String>(i).ok().map_or(vec![], |s| vec![s]);
+                                }
+                            }
+                            Ok((bid, BookmarkTag {
+                                url,
+                                tag
+                            }))
+                        })?;
+                        let mut bmark_map: HashMap<String, BookmarkTag> = HashMap::new();
+                        for row in rows {
+                            if let Ok(mut row) = row {
+                                if let Some(val) = bmark_map.get_mut(&row.0) {
+                                    val.tag.append(&mut row.1.tag);
+                                } else {
+                                    bmark_map.insert(row.0, row.1);
+                                }
+                            }
+                        }
+
+                        for val in bmark_map.values() {
+                            println!("{:?}", val);
+                        }
                     }
                 }
                 // stmt.push_str("FROM bmark b LEFT JOIN bmark_tag bt ON bt.bmark_id=b.id LEFT JOIN tag t ON bt.tag_id=t.id");

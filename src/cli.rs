@@ -72,6 +72,10 @@ pub fn build_args() -> ArgMatches {
                 ])
                 .group(ArgGroup::new("output").args(["all", "tag"]).required(true))
                 .arg(
+                    // NOTE: Later, this needs to be changed to multi-value option where user can desire
+                    // for any combination of the column present from the option with only
+                    // constraint that url will be present in every one of them. And so, url value
+                    // option will be used to just print the url only
                     Arg::new("cols")
                         .short('c')
                         .long("cols")
